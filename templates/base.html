@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Email Marketing App</title>
+</head>
+<body>
+  <h1>Email Marketing App</h1>
+  <a href="/">Dashboard</a> |
+  <a href="/contacts">Contacts</a> |
+  <a href="/campaign/new">New Campaign</a>
+  <hr>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+      <p><strong>{{ message }}</strong></p>
+    {% endfor %}
+  {% endwith %}
+
+  {% block content %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2>Contacts</h2>
+
+<form method="POST">
+  <input name="name" placeholder="Name">
+  <input name="email" placeholder="Email" required>
+  <button>Add</button>
+</form>
+
+<hr>
+
+<ul>
+{% for c in contacts %}
+  <li>{{ c.name }} – {{ c.email }}</li>
+{% endfor %}
+</ul>
+
+{% endblock %}

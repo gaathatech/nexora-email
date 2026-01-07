@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2>Dashboard</h2>
+<p>Total Contacts: {{ contacts_count }}</p>
+
+<table border="1" cellpadding="6">
+<tr>
+  <th>Subject</th>
+  <th>Status</th>
+  <th>Sent</th>
+  <th>Action</th>
+</tr>
+{% for c in campaigns %}
+<tr>
+  <td>{{ c.subject }}</td>
+  <td>{{ c.status }}</td>
+  <td>{{ c.sent_count }}</td>
+  <td>
+    {% if c.status != "sent" %}
+      <a href="/campaign/send/{{ c.id }}">Send</a>
+    {% endif %}
+  </td>
+</tr>
+{% endfor %}
+</table>
+
+{% endblock %}

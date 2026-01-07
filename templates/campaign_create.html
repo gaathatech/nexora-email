@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2>Create Campaign</h2>
+
+<form method="POST">
+  <input name="subject" placeholder="Email Subject" required><br><br>
+  <textarea name="body" rows="10" cols="70" placeholder="HTML Email Body"></textarea><br><br>
+  <button>Create</button>
+</form>
+
+{% endblock %}
