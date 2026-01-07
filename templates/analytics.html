@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2>📊 Campaign Analytics</h2>
+
+<p><b>Sent:</b> {{ total_sent }}</p>
+<p><b>Failed:</b> {{ total_failed }}</p>
+
+<h4>Per Sender</h4>
+<ul>
+{% for row in per_sender %}
+  <li>{{ row[0] }} → {{ row[1] }}</li>
+{% endfor %}
+</ul>
+
+{% endblock %}
