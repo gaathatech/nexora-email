@@ -1,20 +1,49 @@
 {% extends "base.html" %}
 {% block content %}
 
-<h2>Contacts</h2>
+<h2>📇 Contacts</h2>
 
-<form method="POST">
-  <input name="name" placeholder="Name">
-  <input name="email" placeholder="Email" required>
-  <button>Add</button>
+<!-- Add single contact -->
+<form method="post">
+  <input type="email" name="email" placeholder="Email address" required>
+  <button type="submit">Add Contact</button>
 </form>
 
 <hr>
 
+<!-- Bulk CSV Upload -->
+<h3>📤 Import from CSV</h3>
+<form method="post" action="{{ url_for('main.import_contacts') }}" enctype="multipart/form-data">
+  <input type="file" name="csv" accept=".csv" required>
+  <button type="submit">Upload CSV</button>
+</form>
+
+<p><small>CSV must contain column: <b>email</b></small></p>
+
+<hr>
+
+<!-- Bulk Paste -->
+<h3>📋 Paste Emails (comma separated)</h3>
+<form method="post" action="{{ url_for('main.bulk_contacts') }}">
+  <textarea
+  name="emails"
+  rows="6"
+  style="width:100%"
+  placeholder="one@email.com
+two@email.com
+three@email.com">
+</textarea>
+  <button type="submit">Add Emails</button>
+</form>
+
+<hr>
+
+<h3>Existing Contacts ({{ contacts|length }})</h3>
 <ul>
 {% for c in contacts %}
-  <li>{{ c.name }} – {{ c.email }}</li>
+  <li>{{ c.email }}</li>
 {% endfor %}
 </ul>
+
 
 {% endblock %}

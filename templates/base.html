@@ -7,7 +7,9 @@
   <h1>Email Marketing App</h1>
   <a href="/">Dashboard</a> |
   <a href="/contacts">Contacts</a> |
-  <a href="/campaign/new">New Campaign</a>
+  <a href="{{ url_for('main.contacts') }}">Contacts</a> |
+  <a href="{{ url_for('main.analytics') }}">Analytics</a> |
+  <a href="/campaign/new">New Campaign</a> 
   <hr>
 
   {% with messages = get_flashed_messages(with_categories=true) %}
