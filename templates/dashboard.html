@@ -1,28 +1,27 @@
 {% extends "base.html" %}
 {% block content %}
 
-<h2>Dashboard</h2>
-<p>Total Contacts: {{ contacts_count }}</p>
+<h3>📊 Campaign Overview</h3>
 
-<table border="1" cellpadding="6">
-<tr>
-  <th>Subject</th>
-  <th>Status</th>
-  <th>Sent</th>
-  <th>Action</th>
-</tr>
+<div class="row text-center">
+  <div class="col">Sent<br><b>{{sent}}</b></div>
+  <div class="col">Opened<br><b>{{opens}}</b></div>
+  <div class="col">Clicked<br><b>{{clicks}}</b></div>
+  <div class="col">Failed<br><b>{{failed}}</b></div>
+</div>
+
+<hr>
+
+<h4>Campaigns</h4>
+<a href="/campaign/new" class="btn btn-primary btn-sm mb-2">➕ New Campaign</a>
+
+<ul class="list-group">
 {% for c in campaigns %}
-<tr>
-  <td>{{ c.subject }}</td>
-  <td>{{ c.status }}</td>
-  <td>{{ c.sent_count }}</td>
-  <td>
-    {% if c.status != "sent" %}
-      <a href="/campaign/send/{{ c.id }}">Send</a>
-    {% endif %}
-  </td>
-</tr>
+  <li class="list-group-item d-flex justify-content-between">
+    {{c.subject}} (Variant {{c.variant}})
+    <a href="/campaign/send/{{c.id}}" class="btn btn-sm btn-success">Send</a>
+  </li>
 {% endfor %}
-</table>
+</ul>
 
 {% endblock %}

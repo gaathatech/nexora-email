@@ -1,49 +1,22 @@
 {% extends "base.html" %}
 {% block content %}
 
-<h2>📇 Contacts</h2>
+<h3>📇 Contacts</h3>
 
-<!-- Add single contact -->
 <form method="post">
-  <input type="email" name="email" placeholder="Email address" required>
-  <button type="submit">Add Contact</button>
+  <textarea name="emails" class="form-control" placeholder="Paste emails line by line"></textarea>
+  <input name="whatsapp" class="form-control mt-2" placeholder="WhatsApp number (optional)">
+  <button class="btn btn-primary mt-2">Add Contacts</button>
 </form>
 
 <hr>
 
-<!-- Bulk CSV Upload -->
-<h3>📤 Import from CSV</h3>
-<form method="post" action="{{ url_for('main.import_contacts') }}" enctype="multipart/form-data">
-  <input type="file" name="csv" accept=".csv" required>
-  <button type="submit">Upload CSV</button>
-</form>
-
-<p><small>CSV must contain column: <b>email</b></small></p>
-
-<hr>
-
-<!-- Bulk Paste -->
-<h3>📋 Paste Emails (comma separated)</h3>
-<form method="post" action="{{ url_for('main.bulk_contacts') }}">
-  <textarea
-  name="emails"
-  rows="6"
-  style="width:100%"
-  placeholder="one@email.com
-two@email.com
-three@email.com">
-</textarea>
-  <button type="submit">Add Emails</button>
-</form>
-
-<hr>
-
-<h3>Existing Contacts ({{ contacts|length }})</h3>
-<ul>
+<ul class="list-group">
 {% for c in contacts %}
-  <li>{{ c.email }}</li>
+  <li class="list-group-item">
+    {{c.email}} {% if c.whatsapp %}📱 {{c.whatsapp}}{% endif %}
+  </li>
 {% endfor %}
 </ul>
-
 
 {% endblock %}

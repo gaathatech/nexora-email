@@ -1,16 +1,36 @@
 {% extends "base.html" %}
 {% block content %}
 
-<h2>📊 Campaign Analytics</h2>
+<h3>📈 Campaign Analytics</h3>
 
-<p><b>Sent:</b> {{ total_sent }}</p>
-<p><b>Failed:</b> {{ total_failed }}</p>
+<canvas id="chart"></canvas>
 
-<h4>Per Sender</h4>
-<ul>
-{% for row in per_sender %}
-  <li>{{ row[0] }} → {{ row[1] }}</li>
-{% endfor %}
-</ul>
+<script>
+const data = {
+  labels: [{% for r in data %}"Campaign {{r.campaign_id}}",{% endfor %}],
+  datasets: [
+    {
+      label: "Sent",
+      data: [{% for r in data %}{{r.sent}},{% endfor %}],
+      backgroundColor: "blue"
+    },
+    {
+      label: "Opens",
+      data: [{% for r in data %}{{r.opens}},{% endfor %}],
+      backgroundColor: "green"
+    },
+    {
+      label: "Clicks",
+      data: [{% for r in data %}{{r.clicks}},{% endfor %}],
+      backgroundColor: "orange"
+    }
+  ]
+};
+
+new Chart(document.getElementById("chart"), {
+  type: "bar",
+  data: data
+});
+</script>
 
 {% endblock %}
