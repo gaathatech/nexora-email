@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>SMTP Account Performance</h1>
+    <p class="text-muted">Last 7 days performance metrics</p>
+
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead class="table-light">
+                <tr>
+                    <th>Email Account</th>
+                    <th>Emails Sent</th>
+                    <th>Failed</th>
+                    <th>Success Rate</th>
+                    <th>Daily Limit</th>
+                    <th>Efficiency</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for account in performance %}
+                <tr>
+                    <td><code>{{ account.email }}</code></td>
+                    <td><strong>{{ account.sent }}</strong></td>
+                    <td><span class="text-danger">{{ account.failed }}</span></td>
+                    <td>
+                        <div class="progress" style="height: 20px;">
+                            {% set success_pct = account.success_rate.rstrip('%') | float %}
+                            <div class="progress-bar {% if success_pct >= 95 %}bg-success{% elif success_pct >= 80 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                 role="progressbar" 
+                                 style="width: {{ success_pct }}%;" 
+                                 aria-valuenow="{{ success_pct }}" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="100">
+                                {{ account.success_rate }}
+                            </div>
+                        </div>
+                    </td>
+                    <td>{{ account.daily_limit }}/day</td>
+                    <td>
+                        {% set avg_per_day = (account.sent / 7) | int %}
+                        {{ avg_per_day }}/day avg
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted">No accounts configured</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5>Total Sent (7 days)</h5>
+                    <h2 class="text-primary">{{ performance | map(attribute='sent') | sum }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5>Average Daily Capacity</h5>
+                    <h2 class="text-info">{{ performance | map(attribute='daily_limit') | sum }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <a href="{{ url_for('main.manage_accounts') }}" class="btn btn-secondary mt-4">Manage Accounts</a>
+</div>
+{% endblock %}

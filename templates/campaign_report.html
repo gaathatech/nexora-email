@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>{{ report.campaign.subject }}</h1>
+    <p class="text-muted">Campaign Report • Generated: {{ report.generated_at }}</p>
+
+    <!-- Key Metrics -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="text-primary">{{ report.sent }}</h3>
+                    <p class="card-text">Sent</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="text-info">{{ report.unique_opens }}</h3>
+                    <p class="card-text">Unique Opens ({{ report.unique_open_rate }})</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="text-success">{{ report.unique_clicks }}</h3>
+                    <p class="card-text">Unique Clicks ({{ report.unique_click_rate }})</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="text-danger">{{ report.failed }}</h3>
+                    <p class="card-text">Failed</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pending -->
+    {% if report.pending > 0 %}
+    <div class="alert alert-warning">
+        <strong>⏳ Pending:</strong> {{ report.pending }} emails waiting for available SMTP account capacity
+    </div>
+    {% endif %}
+
+    <!-- Top Links -->
+    {% if report.top_links %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>Top Performing Links</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Link</th>
+                        <th>Type</th>
+                        <th>Clicks</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for link in report.top_links %}
+                    <tr>
+                        <td>
+                            <code class="small">{{ link.link_text or link.url[:50] }}</code>
+                        </td>
+                        <td><span class="badge bg-secondary">{{ link.click_type }}</span></td>
+                        <td><strong>{{ link.count }}</strong></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Device Breakdown -->
+    {% if report.device_stats %}
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Opens by Device</h5>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Device</th>
+                                <th>Opens</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for device in report.device_stats %}
+                            <tr>
+                                <td>{{ device.device_type or 'Unknown' }}</td>
+                                <td>{{ device.count }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Click Type Breakdown -->
+        {% if report.click_type_stats %}
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Clicks by Type</h5>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Type</th>
+                                <th>Count</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for click_type in report.click_type_stats %}
+                            <tr>
+                                <td>{{ click_type.click_type }}</td>
+                                <td>{{ click_type.count }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Actions -->
+    <div class="mb-4">
+        <a href="{{ url_for('main.campaign_report_html', id=report.campaign.id) }}" class="btn btn-primary" download>
+            📥 Download HTML Report
+        </a>
+        <a href="{{ url_for('main.analytics') }}" class="btn btn-secondary">Back to Analytics</a>
+    </div>
+</div>
+{% endblock %}
