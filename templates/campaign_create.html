@@ -3,10 +3,41 @@
 
 <h2>Create Campaign</h2>
 
-<form method="POST">
-  <input name="subject" placeholder="Email Subject" required><br><br>
-  <textarea name="body" rows="10" cols="70" placeholder="HTML Email Body"></textarea><br><br>
-  <button>Create</button>
+<form method="POST" style="max-width: 600px;">
+  <div style="margin-bottom: 20px;">
+    <label for="subject" style="display: block; margin-bottom: 5px; font-weight: bold;">Email Subject *</label>
+    <input type="text" id="subject" name="subject" placeholder="Your email subject line" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+  </div>
+
+  <div style="margin-bottom: 20px;">
+    <label for="body" style="display: block; margin-bottom: 5px; font-weight: bold;">Email Body (HTML) *</label>
+    <textarea id="body" name="body" rows="12" cols="50" placeholder="HTML email content" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: monospace;"></textarea>
+  </div>
+
+  <div style="margin-bottom: 20px;">
+    <label for="group_id" style="display: block; margin-bottom: 5px; font-weight: bold;">Send to Group (optional)</label>
+    <select id="group_id" name="group_id" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+      <option value="">— All Subscribed Contacts —</option>
+      {% for group in groups %}
+        <option value="{{ group.id }}">{{ group.name }} ({{ group.contact_count() }} contacts)</option>
+      {% endfor %}
+    </select>
+    <small style="color: #666; display: block; margin-top: 5px;">
+      Leave empty to send to all subscribed contacts, or select a specific group.
+      <a href="{{ url_for('main.manage_groups') }}" style="color: #007bff;">Manage groups</a>
+    </small>
+  </div>
+
+  <div style="margin-bottom: 20px;">
+    <label for="variant" style="display: block; margin-bottom: 5px; font-weight: bold;">Variant</label>
+    <select id="variant" name="variant" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+      <option value="A">Variant A</option>
+      <option value="B">Variant B</option>
+    </select>
+  </div>
+
+  <button type="submit" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;">Create Campaign</button>
 </form>
 
 {% endblock %}
+

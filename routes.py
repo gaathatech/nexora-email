@@ -66,28 +66,115 @@ def contacts():
 
     return render_template("contacts.html", contacts=Contact.query.all())
 
+@main_routes.route("/groups", methods=["GET", "POST"])
+def manage_groups():
+    """Manage contact groups"""
+    if request.method == "POST":
+        name = request.form.get("name")
+        description = request.form.get("description", "")
+        
+        if ContactGroup.query.filter_by(name=name).first():
+            flash("Group name already exists", "warning")
+        else:
+            group = ContactGroup(name=name, description=description)
+            db.session.add(group)
+            db.session.commit()
+            flash(f"Group '{name}' created", "success")
+    
+    groups = ContactGroup.query.all()
+    return render_template("groups.html", groups=groups)
+
+@main_routes.route("/group/<int:id>")
+def group_detail(id):
+    """View group details and manage contacts"""
+    group = ContactGroup.query.get_or_404(id)
+    return render_template("group_detail.html", group=group)
+
+@main_routes.route("/group/<int:id>/add-contacts", methods=["POST"])
+def add_contacts_to_group(id):
+    """Add contacts to a group via CSV/paste"""
+    group = ContactGroup.query.get_or_404(id)
+    raw = request.form.get("emails", "")
+    
+    raw = raw.replace(",", "\n")
+    emails = [e.strip() for e in raw.splitlines() if "@" in e and e.strip()]
+    
+    added = 0
+    for email in emails:
+        contact = Contact.query.filter_by(email=email).first()
+        if not contact:
+            contact = Contact(email=email)
+            db.session.add(contact)
+            db.session.flush()
+        
+        if contact not in group.contacts:
+            group.contacts.append(contact)
+            added += 1
+    
+    db.session.commit()
+    flash(f"{added} contacts added to group '{group.name}'", "success")
+    return redirect(url_for("main.group_detail", id=id))
+
+@main_routes.route("/group/<int:id>/remove-contact/<int:contact_id>")
+def remove_contact_from_group(id, contact_id):
+    """Remove a contact from a group"""
+    group = ContactGroup.query.get_or_404(id)
+    contact = Contact.query.get_or_404(contact_id)
+    
+    if contact in group.contacts:
+        group.contacts.remove(contact)
+        db.session.commit()
+        flash(f"Contact {contact.email} removed from group", "success")
+    
+    return redirect(url_for("main.group_detail", id=id))
+
+@main_routes.route("/group/<int:id>/delete")
+def delete_group(id):
+    """Delete a group"""
+    group = ContactGroup.query.get_or_404(id)
+    group_name = group.name
+    db.session.delete(group)
+    db.session.commit()
+    flash(f"Group '{group_name}' deleted", "success")
+    return redirect(url_for("main.manage_groups"))
+
 @main_routes.route("/campaign/new", methods=["GET", "POST"])
 def new_campaign():
     if request.method == "POST":
+        group_id = request.form.get("group_id")
         c = Campaign(
             subject=request.form["subject"],
             body_html=request.form["body"],
-            variant=request.form.get("variant", "A")
+            variant=request.form.get("variant", "A"),
+            group_id=int(group_id) if group_id else None
         )
         db.session.add(c)
         db.session.commit()
         return redirect(url_for("main.dashboard"))
 
-    return render_template("campaign_create.html")
+    groups = ContactGroup.query.all()
+    return render_template("campaign_create.html", groups=groups)
 
 @main_routes.route("/campaign/send/<int:id>")
 def send_campaign(id):
     campaign = Campaign.query.get_or_404(id)
-    contacts = Contact.query.filter_by(subscribed=True).all()
+    
+    # Get contacts from selected group or all subscribed contacts
+    if campaign.group_id:
+        group = ContactGroup.query.get(campaign.group_id)
+        if not group:
+            flash("Group not found", "error")
+            return redirect(url_for("main.dashboard"))
+        contacts = [c for c in group.contacts if c.subscribed]
+        group_name = f" in group '{group.name}'"
+    else:
+        contacts = Contact.query.filter_by(subscribed=True).all()
+        group_name = " (all contacts)"
+    
     emails = [c.email for c in contacts]
     
     if not emails:
-        flash("No subscribed contacts to send to", "warning")
+        flash(f"No subscribed contacts{group_name} to send to", "warning")
         return redirect(url_for("main.dashboard"))
     
     campaign.total_recipients = len(emails)
@@ -102,7 +189,7 @@ def send_campaign(id):
         campaign_id=campaign.id
     )
 
-    msg = f"✅ Sent: {sent} | ❌ Failed: {len(failed)} | ⏳ Pending: {pending}"
+    msg = f"✅ Sent: {sent} | ❌ Failed: {len(failed)} | ⏳ Pending: {pending}{group_name}"
     flash(msg, "success")
     return redirect(url_for("main.dashboard"))
 
@@ -305,3 +392,63 @@ def api_campaign_stats(id):
         'open_rate': report['unique_open_rate'],
         'click_rate': report['unique_click_rate']
     })
+
+
+@main_routes.route("/api/campaign/<int:id>/progress")
+def api_campaign_progress(id):
+    """Return live sending progress for a campaign"""
+    campaign = Campaign.query.get(id)
+    if not campaign:
+        return jsonify({'error': 'Campaign not found'}), 404
+
+    total = campaign.total_recipients or 0
+    sent = SendLog.query.filter_by(campaign_id=id, status='sent').count()
+    failed = SendLog.query.filter_by(campaign_id=id, status='failed').count()
+    pending = SendLog.query.filter_by(campaign_id=id, status='pending').count()
+
+    # Per-account usage
+    accounts = SmtpAccount.query.filter_by(is_active=True).all()
+    today = date.today()
+    acc_stats = []
+    for acc in accounts:
+        sent_today = SendLog.query.filter(
+            and_(
+                SendLog.sender == acc.email,
+                SendLog.status == 'sent',
+                db.func.date(SendLog.timestamp) == today
+            )
+        ).count()
+        acc_stats.append({
+            'email': acc.email,
+            'sent_today': sent_today,
+            'daily_limit': acc.daily_limit,
+            'remaining': max(acc.daily_limit - sent_today, 0)
+        })
+
+    return jsonify({
+        'campaign_id': id,
+        'subject': campaign.subject,
+        'status': campaign.status,
+        'total': total,
+        'sent': sent,
+        'failed': failed,
+        'pending': pending,
+        'accounts': acc_stats
+    })
+
+@main_routes.route('/api/campaign/<int:id>/logs')
+def api_campaign_logs(id):
+    """Return recent send logs for a campaign"""
+    logs = SendLog.query.filter_by(campaign_id=id).order_by(SendLog.timestamp.desc()).limit(200).all()
+    out = []
+    for l in logs:
+        out.append({
+            'id': l.id,
+            'recipient': l.recipient,
+            'sender': l.sender,
+            'status': l.status,
+            'error': l.error,
+            'timestamp': l.timestamp.isoformat() if getattr(l,'timestamp',None) else None,
+            'retry_count': getattr(l,'retry_count',0)
+        })
+    return jsonify(out)

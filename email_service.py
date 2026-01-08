@@ -3,7 +3,7 @@ import time
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from flask import current_app
-from extensions import db
+from extensions import db, socketio
 from models import SendLog, SmtpAccount, Campaign
 from datetime import datetime, date
 from sqlalchemy import and_, or_
@@ -115,6 +115,20 @@ def send_campaign_email(subject, html_body, recipients, campaign_id=None):
             db.session.add(log)
 
         db.session.commit()
+
+        # emit realtime update for UI
+        try:
+            if campaign_id and 'log' in locals():
+                payload = {
+                    'campaign_id': campaign_id,
+                    'recipient': log.recipient,
+                    'sender': log.sender,
+                    'status': log.status,
+                    'timestamp': log.timestamp.isoformat() if getattr(log, 'timestamp', None) else datetime.utcnow().isoformat()
+                }
+                socketio.emit('send_update', payload, namespace='/')
+        except Exception:
+            pass
 
     # Update campaign status
     if campaign_id:

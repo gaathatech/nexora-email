@@ -1,6 +1,13 @@
 from extensions import db
 from datetime import datetime, date
 
+# Association table for Contact to ContactGroup many-to-many relationship
+contact_group_association = db.Table(
+    'contact_group_association',
+    db.Column('contact_id', db.Integer, db.ForeignKey('contact.id'), primary_key=True),
+    db.Column('contact_group_id', db.Integer, db.ForeignKey('contact_group.id'), primary_key=True)
+)
+
 class SmtpAccount(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(255), unique=True, nullable=False)
@@ -31,6 +38,16 @@ class Contact(db.Model):
     email = db.Column(db.String(255), unique=True, nullable=False)
     subscribed = db.Column(db.Boolean, default=True)
     whatsapp = db.Column(db.String(20), nullable=True)
+    groups = db.relationship('ContactGroup', secondary=contact_group_association, backref='contacts')
+
+class ContactGroup(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), unique=True, nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def contact_count(self):
+        return len(self.contacts)
 
 class Campaign(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -38,6 +55,8 @@ class Campaign(db.Model):
     body_html = db.Column(db.Text)
     variant = db.Column(db.String(1), default="A")  # A or B
     status = db.Column(db.String(20), default="draft")  # draft, pending, paused, sent
+    group_id = db.Column(db.Integer, db.ForeignKey('contact_group.id'), nullable=True)
+    group = db.relationship('ContactGroup')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     started_at = db.Column(db.DateTime, nullable=True)
     completed_at = db.Column(db.DateTime, nullable=True)

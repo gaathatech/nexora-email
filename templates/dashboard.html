@@ -17,11 +17,153 @@
 
 <ul class="list-group">
 {% for c in campaigns %}
-  <li class="list-group-item d-flex justify-content-between">
-    {{c.subject}} (Variant {{c.variant}})
-    <a href="/campaign/send/{{c.id}}" class="btn btn-sm btn-success">Send</a>
+  <li class="list-group-item">
+    <div class="d-flex justify-content-between align-items-center">
+      <div>
+        <strong>{{c.subject}}</strong> <small class="text-muted">(Variant {{c.variant}})</small>
+        {% if c.group %}
+          <span style="background: #e7f3ff; padding: 2px 8px; border-radius: 3px; font-size: 12px; margin-left: 8px;">📋 {{ c.group.name }}</span>
+        {% endif %}
+      </div>
+      <div>
+        <a href="/campaign/send/{{c.id}}" class="btn btn-sm btn-success">Send</a>
+        <a href="/campaign/{{c.id}}/report" class="btn btn-sm btn-secondary">Report</a>
+      </div>
+    </div>
+
+    <div class="mt-2">
+      <div id="campaign-progress-{{c.id}}" data-cid="{{c.id}}">
+        <div class="small text-muted">Status: <span class="campaign-status">{{c.status or 'draft'}}</span></div>
+        <div class="progress" style="height:14px;">
+          <div class="progress-bar bg-success" role="progressbar" style="width:0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+        </div>
+        <div class="small mt-1">Sent: <span class="sent-count">0</span> / <span class="total-count">{{c.total_recipients or 0}}</span> • Pending: <span class="pending-count">0</span> • Failed: <span class="failed-count">0</span></div>
+      </div>
+    </div>
   </li>
 {% endfor %}
 </ul>
+
+<div class="mb-2">
+  <label class="small">Polling interval:</label>
+  <select id="poll-interval" class="form-select form-select-sm" style="width:120px; display:inline-block; margin-left:8px;">
+    <option value="1000">1s</option>
+    <option value="3000">3s</option>
+    <option value="5000" selected>5s</option>
+    <option value="10000">10s</option>
+    <option value="30000">30s</option>
+    <option value="0">Disabled</option>
+  </select>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const progressEls = document.querySelectorAll('[id^="campaign-progress-"]');
+
+  // Polling interval control
+  const intervalSelect = document.getElementById('poll-interval');
+  const saved = localStorage.getItem('pollInterval');
+  if(saved) intervalSelect.value = saved;
+
+  let timers = [];
+  function startPolling(){
+    // clear existing
+    timers.forEach(t => clearInterval(t)); timers = [];
+
+    const val = parseInt(intervalSelect.value, 10);
+    if(val > 0){
+      progressEls.forEach(el => {
+        const cid = el.dataset.cid;
+        const update = async () => {
+          try{
+            const res = await fetch(`/api/campaign/${cid}/progress`);
+            if(!res.ok) return;
+            const j = await res.json();
+            el.querySelector('.campaign-status').textContent = j.status || '';
+            el.querySelector('.sent-count').textContent = j.sent;
+            el.querySelector('.total-count').textContent = j.total;
+            el.querySelector('.pending-count').textContent = j.pending;
+            el.querySelector('.failed-count').textContent = j.failed;
+            const pct = j.total > 0 ? Math.round((j.sent / j.total) * 100) : 0;
+            const bar = el.querySelector('.progress-bar');
+            bar.style.width = pct + '%';
+            bar.setAttribute('aria-valuenow', pct);
+            bar.textContent = pct + '%';
+          } catch(e){ console.warn('progress fetch error', e); }
+        };
+        // initial and poll
+        update();
+        const t = setInterval(update, val);
+        timers.push(t);
+      });
+    } else {
+      // disabled -> perform initial only
+      progressEls.forEach(el => {
+        const cid = el.dataset.cid;
+        fetch(`/api/campaign/${cid}/progress`).then(r=>r.json()).then(j=>{
+          el.querySelector('.campaign-status').textContent = j.status || '';
+          el.querySelector('.sent-count').textContent = j.sent;
+          el.querySelector('.total-count').textContent = j.total;
+          el.querySelector('.pending-count').textContent = j.pending;
+          el.querySelector('.failed-count').textContent = j.failed;
+          const pct = j.total > 0 ? Math.round((j.sent / j.total) * 100) : 0;
+          const bar = el.querySelector('.progress-bar');
+          bar.style.width = pct + '%';
+          bar.setAttribute('aria-valuenow', pct);
+          bar.textContent = pct + '%';
+        }).catch(()=>{});
+      });
+    }
+  }
+
+  intervalSelect.addEventListener('change', function(){
+    localStorage.setItem('pollInterval', intervalSelect.value);
+    startPolling();
+  });
+
+  startPolling();
+
+  // Socket.IO realtime updates
+  try{
+    const socket = io();
+    socket.on('send_update', function(data){
+      const el = document.getElementById('campaign-progress-' + data.campaign_id);
+      if(!el) return;
+      const sentEl = el.querySelector('.sent-count');
+      const pendingEl = el.querySelector('.pending-count');
+      const failedEl = el.querySelector('.failed-count');
+
+      let sent = parseInt(sentEl.textContent || '0', 10);
+      let pending = parseInt(pendingEl.textContent || '0', 10);
+      let failed = parseInt(failedEl.textContent || '0', 10);
+
+      if(data.status === 'sent'){
+        sent += 1;
+        if(pending > 0) pending -= 1;
+      } else if(data.status === 'failed'){
+        failed += 1;
+        if(pending > 0) pending -= 1;
+      } else if(data.status === 'pending'){
+        pending += 1;
+      }
+
+      sentEl.textContent = sent;
+      pendingEl.textContent = pending;
+      failedEl.textContent = failed;
+
+      const total = parseInt(el.querySelector('.total-count').textContent || '0', 10);
+      const pct = total > 0 ? Math.round((sent / total) * 100) : 0;
+      const bar = el.querySelector('.progress-bar');
+      bar.style.width = pct + '%';
+      bar.setAttribute('aria-valuenow', pct);
+      bar.textContent = pct + '%';
+
+      el.querySelector('.campaign-status').textContent = data.status || el.querySelector('.campaign-status').textContent;
+    });
+  }catch(e){ console.warn('socket.io not available', e); }
+
+});
+</script>
 
 {% endblock %}

@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+  <h2>Contact Groups</h2>
+  <button onclick="document.getElementById('createForm').style.display='block'" style="padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">➕ New Group</button>
+</div>
+
+<!-- Create Group Form -->
+<div id="createForm" style="display: none; background: #f5f5f5; padding: 20px; border-radius: 4px; margin-bottom: 20px;">
+  <h3>Create New Group</h3>
+  <form method="POST">
+    <input type="text" name="name" placeholder="Group Name (e.g., VIP Customers)" required style="width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px;"><br>
+    <textarea name="description" placeholder="Group Description (optional)" style="width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px; height: 80px;"></textarea><br>
+    <button type="submit" style="padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">Create Group</button>
+    <button type="button" onclick="document.getElementById('createForm').style.display='none'" style="padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin-left: 10px;">Cancel</button>
+  </form>
+</div>
+
+<!-- Groups List -->
+{% if groups %}
+<table style="width: 100%; border-collapse: collapse; background: white;">
+  <thead>
+    <tr style="background: #f8f9fa; border-bottom: 2px solid #ddd;">
+      <th style="padding: 12px; text-align: left;">Group Name</th>
+      <th style="padding: 12px; text-align: left;">Description</th>
+      <th style="padding: 12px; text-align: center;">Contacts</th>
+      <th style="padding: 12px; text-align: center;">Created</th>
+      <th style="padding: 12px; text-align: center;">Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for group in groups %}
+    <tr style="border-bottom: 1px solid #ddd;">
+      <td style="padding: 12px;"><strong>{{ group.name }}</strong></td>
+      <td style="padding: 12px;">{{ group.description or '—' }}</td>
+      <td style="padding: 12px; text-align: center;">
+        <span style="background: #e7f3ff; padding: 4px 8px; border-radius: 4px;">{{ group.contact_count() }}</span>
+      </td>
+      <td style="padding: 12px; text-align: center; font-size: 12px;">{{ group.created_at.strftime('%Y-%m-%d') }}</td>
+      <td style="padding: 12px; text-align: center;">
+        <a href="{{ url_for('main.group_detail', id=group.id) }}" style="color: #007bff; text-decoration: none; margin: 0 5px;">Manage</a>
+        <a href="{{ url_for('main.delete_group', id=group.id) }}" onclick="return confirm('Delete this group?')" style="color: #dc3545; text-decoration: none; margin: 0 5px;">Delete</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div style="text-align: center; padding: 40px; background: #f8f9fa; border-radius: 4px;">
+  <p>No contact groups yet. Create one to organize your contacts!</p>
+</div>
+{% endif %}
+
+<style>
+  button:hover { opacity: 0.9; }
+</style>
+
+{% endblock %}
