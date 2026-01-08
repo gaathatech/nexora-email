@@ -155,6 +155,47 @@ def new_campaign():
     groups = ContactGroup.query.all()
     return render_template("campaign_create.html", groups=groups)
 
+@main_routes.route("/campaign/<int:id>/edit-group", methods=["GET", "POST"])
+def edit_campaign_group(id):
+    """Change which group a campaign sends to"""
+    campaign = Campaign.query.get_or_404(id)
+    
+    if campaign.status not in ["draft", "pending"]:
+        flash("Can only edit group for draft or pending campaigns", "warning")
+        return redirect(url_for("main.dashboard"))
+    
+    if request.method == "POST":
+        group_id = request.form.get("group_id")
+        campaign.group_id = int(group_id) if group_id else None
+        db.session.commit()
+        
+        group_name = "All Contacts" if not campaign.group_id else campaign.group.name
+        flash(f"Campaign will now send to: {group_name}", "success")
+        return redirect(url_for("main.dashboard"))
+    
+    groups = ContactGroup.query.all()
+    return render_template("campaign_edit_group.html", campaign=campaign, groups=groups)
+
+@main_routes.route("/campaign/<int:id>/preview")
+def preview_campaign(id):
+    """Preview campaign before sending"""
+    campaign = Campaign.query.get_or_404(id)
+    
+    # Get contacts that would be sent to
+    if campaign.group_id:
+        group = ContactGroup.query.get(campaign.group_id)
+        contacts = [c for c in group.contacts if c.subscribed]
+        target = f"Group: {group.name}"
+    else:
+        contacts = Contact.query.filter_by(subscribed=True).all()
+        target = "All Subscribed Contacts"
+    
+    return render_template("campaign_preview.html", 
+                         campaign=campaign, 
+                         contacts=contacts,
+                         target=target,
+                         contact_count=len(contacts))
+
 @main_routes.route("/campaign/send/<int:id>")
 def send_campaign(id):
     campaign = Campaign.query.get_or_404(id)

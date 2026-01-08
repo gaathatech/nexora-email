@@ -1,6 +1,19 @@
 {% extends "base.html" %}
 {% block content %}
 
+{% if failed > 0 %}
+<div class="alert alert-danger" style="margin-bottom: 20px;">
+  <strong>⚠️ {{ failed }} Failed Emails!</strong> 
+  This is usually due to Gmail authentication. Make sure:
+  <ul style="margin: 10px 0 0 20px;">
+    <li>App passwords are correct (not regular Gmail password)</li>
+    <li>Two-factor authentication is enabled on Gmail accounts</li>
+    <li>Accounts have "Less secure app access" allowed (if not using app passwords)</li>
+    <li>Go to <a href="/accounts" style="color: white; text-decoration: underline;">Accounts</a> to check configured SMTP accounts</li>
+  </ul>
+</div>
+{% endif %}
+
 <h3>📊 Campaign Overview</h3>
 
 <div class="row text-center">
@@ -26,7 +39,8 @@
         {% endif %}
       </div>
       <div>
-        <a href="/campaign/send/{{c.id}}" class="btn btn-sm btn-success">Send</a>
+        <a href="/campaign/{{c.id}}/preview" class="btn btn-sm btn-success">👁️ Preview & Send</a>
+        <a href="/campaign/{{c.id}}/edit-group" class="btn btn-sm btn-info">📋 Change Target</a>
         <a href="/campaign/{{c.id}}/report" class="btn btn-sm btn-secondary">Report</a>
       </div>
     </div>

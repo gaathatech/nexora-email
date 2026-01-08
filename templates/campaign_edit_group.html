@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div style="margin-bottom: 20px;">
+  <a href="{{ url_for('main.dashboard') }}" style="color: #007bff; text-decoration: none;">← Back to Dashboard</a>
+</div>
+
+<h2>Change Campaign Target</h2>
+
+<div style="background: #f0f8ff; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+  <strong>📧 Campaign:</strong> {{ campaign.subject }}<br>
+  <strong>Status:</strong> {{ campaign.status }}<br>
+  <strong>Current Target:</strong> 
+  {% if campaign.group %}
+    📋 {{ campaign.group.name }} ({{ campaign.group.contact_count() }} contacts)
+  {% else %}
+    All Subscribed Contacts
+  {% endif %}
+</div>
+
+<form method="POST" style="max-width: 500px;">
+  <div style="margin-bottom: 20px;">
+    <label for="group_id" style="display: block; margin-bottom: 10px; font-weight: bold;">Select Target:</label>
+    <select id="group_id" name="group_id" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-size: 16px;">
+      <option value="">
+        ✉️ All Subscribed Contacts
+        <span style="color: #999;">
+          {% set all_count = 0 %}
+          {% for contact in groups %}{% endfor %}
+          ({{ query.filter_by(subscribed=true).count() if query else '?' }} contacts)
+        </span>
+      </option>
+      {% for group in groups %}
+        <option value="{{ group.id }}" {% if campaign.group_id == group.id %}selected{% endif %}>
+          📋 {{ group.name }} ({{ group.contact_count() }} contacts)
+        </option>
+      {% endfor %}
+    </select>
+    <small style="color: #666; display: block; margin-top: 10px;">
+      Select which contacts this campaign should send to.
+    </small>
+  </div>
+
+  <div style="display: flex; gap: 10px;">
+    <button type="submit" style="padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;">✓ Update Target</button>
+    <a href="{{ url_for('main.dashboard') }}" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; display: inline-block;">Cancel</a>
+  </div>
+</form>
+
+{% endblock %}
