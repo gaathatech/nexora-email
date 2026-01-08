@@ -1,0 +1,79 @@
+# QUICK START - TERMUX VERSION
+
+## 📱 Run on Your Phone (Android)
+
+### One-Time Setup
+```bash
+# In Termux terminal
+apt update && apt upgrade -y
+apt install python3 python3-pip git
+
+git clone https://github.com/gaathatech/nexora-email.git
+cd nexora-email
+
+# Edit .env with your Gmail app passwords
+nano .env
+
+# Setup database
+bash setup.sh
+```
+
+### Every Time You Want to Use
+```bash
+# Just run
+bash run.sh
+```
+
+Then open browser:
+```
+http://127.0.0.1:5000
+```
+
+---
+
+## 🐳 Docker Version (If you have Docker)
+
+```bash
+# One time
+docker build -t nexora .
+
+# Every time
+docker run -p 5000:5000 -v $(pwd)/.env:/app/.env:ro nexora
+```
+
+Then open browser:
+```
+http://127.0.0.1:5000
+```
+
+---
+
+## 📧 .env Template (Copy & Paste)
+
+```env
+FLASK_ENV=production
+DATABASE_URL=sqlite:///instance/email_marketing.db
+SECRET_KEY=nexora-secret-key-2024
+
+SMTP_ACCOUNTS_JSON=[
+  { "email": "account1@gmail.com", "password": "APP_PASSWORD_1" },
+  { "email": "account2@gmail.com", "password": "APP_PASSWORD_2" },
+  { "email": "account3@gmail.com", "password": "APP_PASSWORD_3" },
+  { "email": "account4@gmail.com", "password": "APP_PASSWORD_4" }
+]
+```
+
+---
+
+## ✅ Features Ready on Phone
+
+- 📧 Create & send campaigns
+- 👥 Manage contact groups  
+- 📊 Live progress tracking
+- 📈 Analytics & reports
+- 📱 Device/IP tracking
+- 🔄 Automatic retries
+
+---
+
+**That's it! Everything runs locally on your phone.** 🚀

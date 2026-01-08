@@ -274,30 +274,3 @@ def resend_failed():
 
     db.session.commit()
 
-def send_report(cfg, sent, failures):
-    if not cfg["REPORT_EMAIL"]:
-        return
-
-    body = f"""
-Campaign Report
-
-Total Sent: {sent}
-Failures: {len(failures)}
-
-Errors:
-{chr(10).join(failures[:5])}
-"""
-
-    msg = MIMEText(body)
-    msg["Subject"] = "📊 Email Campaign Report"
-    msg["From"] = cfg["SMTP_ACCOUNTS"][0]["email"]
-    msg["To"] = cfg["REPORT_EMAIL"]
-
-    server = smtplib.SMTP(cfg["SMTP_HOST"], cfg["SMTP_PORT"])
-    server.starttls()
-    server.login(
-        cfg["SMTP_ACCOUNTS"][0]["email"],
-        cfg["SMTP_ACCOUNTS"][0]["password"]
-    )
-    server.sendmail(msg["From"], cfg["REPORT_EMAIL"], msg.as_string())
-    server.quit()
