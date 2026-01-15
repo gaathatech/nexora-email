@@ -75,5 +75,9 @@ def _load_smtp_accounts_from_env():
 
 app = create_app()
 
+# Initialize the email scheduler
+from email_service import init_scheduler
+init_scheduler(app)
+
 if __name__ == "__main__":
     socketio.run(app, debug=True)

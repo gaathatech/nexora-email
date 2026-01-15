@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, jsonify
 from extensions import db
 from models import *
-from email_service import send_campaign_email, resume_pending_campaign, resend_failed
+from email_service import send_campaign_email, resume_pending_campaign, resend_failed, queue_campaign_emails
 from utils.reporting import get_campaign_report, get_account_performance, generate_html_report
 from sqlalchemy import text, and_
 from datetime import date
@@ -223,14 +223,15 @@ def send_campaign(id):
     campaign.started_at = db.func.now()
     db.session.commit()
 
-    sent, failed, pending = send_campaign_email(
+    # Queue emails for scheduled batch sending instead of sending immediately
+    queued = queue_campaign_emails(
+        campaign.id,
         campaign.subject,
         campaign.body_html,
-        emails,
-        campaign_id=campaign.id
+        emails
     )
 
-    msg = f"✅ Sent: {sent} | ❌ Failed: {len(failed)} | ⏳ Pending: {pending}{group_name}"
+    msg = f"✅ Queued {queued} emails for sending. They will be sent in batches every 30 seconds{group_name}"
     flash(msg, "success")
     return redirect(url_for("main.dashboard"))
 

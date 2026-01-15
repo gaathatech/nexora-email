@@ -7,6 +7,12 @@ from extensions import db, socketio
 from models import SendLog, SmtpAccount, Campaign
 from datetime import datetime, date
 from sqlalchemy import and_, or_
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.interval import IntervalTrigger
+
+# Global scheduler instance
+scheduler = None
+EMAIL_QUEUE = []  # Queue of emails waiting to be sent
 
 def get_available_account():
     """Get the next available SMTP account that hasn't hit daily limit"""
@@ -253,7 +259,9 @@ Generated at: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}
 
         server = smtplib.SMTP("smtp.gmail.com", 587)
         server.starttls()
-        server.login(accounts.email, accounts.password)
+        # Remove spaces from app passwords
+        pwd = accounts.password.replace(" ", "")
+        server.login(accounts.email, pwd)
         server.sendmail(accounts.email, cfg["REPORT_EMAIL"], msg.as_string())
         server.quit()
     except Exception as e:
@@ -276,3 +284,173 @@ def resend_failed():
 
     db.session.commit()
 
+
+def init_scheduler(app):
+    """Initialize the background scheduler for batch email sending"""
+    global scheduler
+    if scheduler is not None:
+        return scheduler
+    
+    scheduler = BackgroundScheduler()
+    
+    # Schedule batch sending every 30 seconds
+    scheduler.add_job(
+        send_batch_from_queue,
+        trigger=IntervalTrigger(seconds=30),
+        id='batch_send_job',
+        name='Send batch emails every 30 seconds',
+        replace_existing=True,
+        args=[app]
+    )
+    
+    # Schedule retry of failed emails every 5 minutes
+    scheduler.add_job(
+        retry_failed_batch,
+        trigger=IntervalTrigger(minutes=5),
+        id='retry_job',
+        name='Retry failed emails every 5 minutes',
+        replace_existing=True,
+        args=[app]
+    )
+    
+    if not scheduler.running:
+        scheduler.start()
+        print("✅ Email scheduler started - batches every 30 seconds")
+    
+    return scheduler
+
+
+def queue_campaign_emails(campaign_id, subject, html_body, recipients):
+    """Queue emails for scheduled sending instead of sending immediately"""
+    global EMAIL_QUEUE
+    
+    for recipient in recipients:
+        EMAIL_QUEUE.append({
+            'campaign_id': campaign_id,
+            'recipient': recipient,
+            'subject': subject,
+            'body_html': html_body,
+            'queued_at': datetime.utcnow()
+        })
+    
+    print(f"📧 Queued {len(recipients)} emails for sending. Queue size: {len(EMAIL_QUEUE)}")
+    return len(recipients)
+
+
+def send_batch_from_queue(app):
+    """Send a batch of queued emails (max 10 per batch to respect Gmail limits)"""
+    global EMAIL_QUEUE
+    
+    with app.app_context():
+        if not EMAIL_QUEUE:
+            return
+        
+        # Take up to 10 emails from queue
+        batch = EMAIL_QUEUE[:10]
+        EMAIL_QUEUE = EMAIL_QUEUE[10:]
+        
+        sent_count = 0
+        failures = []
+        
+        for email_data in batch:
+            try:
+                account = get_available_account()
+                
+                if not account:
+                    # Put back in queue if no account available
+                    EMAIL_QUEUE.insert(0, email_data)
+                    continue
+                
+                msg = MIMEMultipart("alternative")
+                msg["From"] = account.email
+                msg["To"] = email_data['recipient']
+                msg["Subject"] = email_data['subject']
+                msg.attach(MIMEText(email_data['body_html'], "html"))
+                
+                server = smtplib.SMTP("smtp.gmail.com", 587, timeout=10)
+                server.starttls()
+                pwd = account.password.replace(" ", "")
+                server.login(account.email, pwd)
+                server.sendmail(account.email, email_data['recipient'], msg.as_string())
+                server.quit()
+                
+                # Log successful send
+                log = SendLog(
+                    campaign_id=email_data['campaign_id'],
+                    recipient=email_data['recipient'],
+                    sender=account.email,
+                    status="sent",
+                    timestamp=datetime.utcnow()
+                )
+                db.session.add(log)
+                account.last_used = datetime.utcnow()
+                sent_count += 1
+                
+                time.sleep(2)  # Rate limiting
+                
+            except Exception as e:
+                error_msg = str(e)
+                failures.append(error_msg)
+                
+                # Log failed send
+                log = SendLog(
+                    campaign_id=email_data['campaign_id'],
+                    recipient=email_data['recipient'],
+                    sender=account.email if 'account' in locals() else "unknown",
+                    status="failed",
+                    error=error_msg,
+                    timestamp=datetime.utcnow()
+                )
+                db.session.add(log)
+        
+        if sent_count > 0 or failures:
+            db.session.commit()
+            print(f"📤 Batch sent: {sent_count} emails, {len(failures)} failures. Queue remaining: {len(EMAIL_QUEUE)}")
+
+
+def retry_failed_batch(app):
+    """Retry failed emails in batches"""
+    with app.app_context():
+        failed_logs = SendLog.query.filter(
+            and_(
+                SendLog.status == "failed",
+                SendLog.retry_count < 3
+            )
+        ).limit(5).all()
+        
+        if not failed_logs:
+            return
+        
+        sent_count = 0
+        for log in failed_logs:
+            try:
+                account = get_available_account()
+                if not account:
+                    break
+                
+                msg = MIMEMultipart("alternative")
+                msg["From"] = account.email
+                msg["To"] = log.recipient
+                msg["Subject"] = "[RETRY] Email Delivery"
+                msg.attach(MIMEText("<p>Retrying email delivery...</p>", "html"))
+                
+                server = smtplib.SMTP("smtp.gmail.com", 587, timeout=10)
+                server.starttls()
+                pwd = account.password.replace(" ", "")
+                server.login(account.email, pwd)
+                server.sendmail(account.email, log.recipient, msg.as_string())
+                server.quit()
+                
+                log.status = "sent"
+                log.sender = account.email
+                log.retry_count += 1
+                sent_count += 1
+                time.sleep(2)
+                
+            except Exception as e:
+                log.retry_count += 1
+                log.error = str(e)
+        
+        if sent_count > 0:
+            db.session.commit()
+            print(f"🔄 Retried {sent_count} failed emails")
