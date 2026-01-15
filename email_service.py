@@ -79,7 +79,9 @@ def send_campaign_email(subject, html_body, recipients, campaign_id=None):
 
             server = smtplib.SMTP("smtp.gmail.com", 587)
             server.starttls()
-            server.login(account.email, account.password)
+            # Remove spaces from app passwords (they're stored with spaces for readability)
+            pwd = account.password.replace(" ", "")
+            server.login(account.email, pwd)
             server.sendmail(account.email, recipient, msg.as_string())
             server.quit()
 
